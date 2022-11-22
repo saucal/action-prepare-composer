@@ -1,14 +1,12 @@
 name: "Prepare Composer"
 description: ""
 inputs:
-  source:
-    description: "Source folder"
-    required: false
-    default: 'source'
-  target:
-    description: "Target folder"
-    required: false
-    default: 'target'
+  path:
+    description: "Where dependencies should be copied to"
+    required: true
+  from:
+    description: "Take installed dependencies from this previous build"
+    required: true
     
 runs:
   using: "composite"
@@ -16,6 +14,6 @@ runs:
     - name: Path Setup
       shell: bash
       env:
-        SOURCE_DIR: ${{ inputs.source }}
-        TARGET_DIR: ${{ inputs.target }}
+        PATH_DIR: ${{ inputs.path }}
+        FROM_DIR: ${{ inputs.from }}
       run: "${{ github.action_path }}/prepare-composer-wp.sh"
