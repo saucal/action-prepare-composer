@@ -19,9 +19,11 @@ run_command() {
     eval "$SSH_COMMAND '$command'"
 }
 
+
 # Check if ${RUNNER_TEMP}/core-version-composer exists
 if [ ! -f "${RUNNER_TEMP}/core-version-composer" ]; then
     echo "core-version-composer file does not exist."
+    ls -als "${RUNNER_TEMP}/"
     exit 0
 fi
 
