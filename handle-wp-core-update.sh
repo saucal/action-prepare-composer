@@ -29,6 +29,8 @@ fi
 
 CORE_VERSION_COMPOSER=$(cat "${SCRIPT_DIR}/core-version-composer")
 
+echo "core-version-composer: $CORE_VERSION_COMPOSER"
+
 # If not set exit.
 if [ -z "$CORE_VERSION_COMPOSER" ]; then
     echo "CORE_VERSION_COMPOSER is not set."
@@ -37,6 +39,8 @@ fi
 
 # Check current version on remote
 CORE_VERSION_REMOTE=$(run_command "wp core version --path=${REMOTE_ROOT}")
+
+echo "core-version-remote: $CORE_VERSION_REMOTE"
 
 # If not set fail.
 if [ -z "$CORE_VERSION_REMOTE" ]; then
