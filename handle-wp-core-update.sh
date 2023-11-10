@@ -1,5 +1,7 @@
 #!/bin/bash
 PATH_DIR="${GITHUB_WORKSPACE}/${PATH_DIR}"
+SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=$(cd "$SCRIPT_DIR" && pwd)
 
 # we need a script, that will check if core is at wrong version & fail - like consistency check
 # and also not update if at the same version. 
@@ -19,15 +21,13 @@ run_command() {
     eval "$SSH_COMMAND '$command'"
 }
 
-
-# Check if ${RUNNER_TEMP}/core-version-composer exists
-if [ ! -f "${RUNNER_TEMP}/core-version-composer" ]; then
-    echo "core-version-composer file does not exist."
-    ls -als "${RUNNER_TEMP}/"
-    exit 0
+# Check if core-version-composer file exists in SCRIPT_DIR
+if [ ! -f "${SCRIPT_DIR}/core-version-composer" ]; then
+    echo "core-version-composer file does not exist in ${SCRIPT_DIR}."
+    exit 1 ## TODO switch to 0
 fi
 
-CORE_VERSION_COMPOSER=$(cat "${RUNNER_TEMP}/core-version-composer")
+CORE_VERSION_COMPOSER=$(cat "${SCRIPT_DIR}/core-version-composer")
 
 # If not set exit.
 if [ -z "$CORE_VERSION_COMPOSER" ]; then
