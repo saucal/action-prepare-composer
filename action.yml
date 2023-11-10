@@ -17,3 +17,9 @@ runs:
         PATH_DIR: ${{ inputs.path }}
         FROM_DIR: ${{ inputs.from }}
       run: "${{ github.action_path }}/prepare-composer-wp.sh"
+
+    - name: Prepare WP Core update handler
+      shell: bash
+      env:
+        PATH_DIR: ${{ inputs.path }}
+      run: "${{ github.action_path }}/prepare-wp-core-update.sh"
