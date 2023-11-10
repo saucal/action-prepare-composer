@@ -12,5 +12,9 @@ if [ -z "$CORE_VERSION_COMPOSER" ]; then
     exit 0
 fi
 
+echo "core-version-composer: $CORE_VERSION_COMPOSER"
+
 echo "$CORE_VERSION_COMPOSER" > "${RUNNER_TEMP}/core-version-composer"
+
+ls -als "${RUNNER_TEMP}/"
 
