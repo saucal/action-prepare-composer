@@ -1,6 +1,8 @@
 
 # MANIFEST_PATH="${RUNNER_TEMP}/git-manifest-$(openssl rand -hex 10)"
 
+cd "${GITHUB_WORKSPACE}/${PATH_DIR}" || exit 1;
+
 cp "$GITHUB_ACTION_PATH/handle-wp-core-update.sh" "${RUNNER_TEMP}/handle-wp-core-update.sh"
 
 CORE_VERSION_COMPOSER=$(composer config extra.wordpress-core)
