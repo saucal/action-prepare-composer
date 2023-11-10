@@ -19,7 +19,13 @@ run_command() {
     eval "$SSH_COMMAND '$command'"
 }
 
-CORE_VERSION_COMPOSER=$(composer config extra.wordpress-core)
+# Check if ${RUNNER_TEMP}/core-version-composer exists
+if [ ! -f "${RUNNER_TEMP}/core-version-composer" ]; then
+    echo "core-version-composer file does not exist."
+    exit 0
+fi
+
+CORE_VERSION_COMPOSER=$(cat "${RUNNER_TEMP}/core-version-composer")
 
 # If not set exit.
 if [ -z "$CORE_VERSION_COMPOSER" ]; then
