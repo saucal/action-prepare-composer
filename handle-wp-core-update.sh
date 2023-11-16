@@ -45,7 +45,7 @@ echo "CORE_VERSION_COMPOSER_TO: $CORE_VERSION_COMPOSER_TO"
 # Check current version on remote
 CORE_VERSION_REMOTE=$(run_command "wp core version --path=${REMOTE_ROOT}")
 
-echo "core-version-remote: $CORE_VERSION_REMOTE"
+echo "CORE_VERSION_REMOTE: $CORE_VERSION_REMOTE"
 
 # If not set fail.
 if [ -z "$CORE_VERSION_REMOTE" ]; then

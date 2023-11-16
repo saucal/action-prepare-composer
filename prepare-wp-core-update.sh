@@ -3,9 +3,16 @@ cd "${GITHUB_WORKSPACE}/${PATH_DIR}" || exit 1;
 
 cp "$GITHUB_ACTION_PATH/handle-wp-core-update.sh" "${RUNNER_TEMP}/handle-wp-core-update.sh"
 
+pwd
+ls -als
+
 CORE_VERSION_COMPOSER_TO=$(composer config extra.wordpress-core)
 
 cd "${GITHUB_WORKSPACE}/${FROM_DIR}" || exit 1;
+
+pwd
+ls -als
+
 CORE_VERSION_COMPOSER_FROM=$(composer config extra.wordpress-core)
 
 if [ -z "$CORE_VERSION_COMPOSER_TO" ]; then
