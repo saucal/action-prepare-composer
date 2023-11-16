@@ -23,7 +23,7 @@ fi
 echo "CORE_VERSION_COMPOSER_TO: $CORE_VERSION_COMPOSER_TO"
 echo "$CORE_VERSION_COMPOSER_TO" > "${RUNNER_TEMP}/core-version-composer-to"
 
-if [ -z "$CORE_VERSION_COMPOSER_FROM" ]; then
+if [ ! -z "$CORE_VERSION_COMPOSER_FROM" ]; then
     echo "CORE_VERSION_COMPOSER_FROM: $CORE_VERSION_COMPOSER_FROM"
     echo "$CORE_VERSION_COMPOSER_FROM" > "${RUNNER_TEMP}/core-version-composer-from"
 fi
