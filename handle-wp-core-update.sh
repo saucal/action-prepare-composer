@@ -1,6 +1,6 @@
 #!/bin/bash
 PATH_DIR="${GITHUB_WORKSPACE}/${PATH_DIR}"
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=$(dirname "$0") # RUNNER_TEMP not available here
 SCRIPT_DIR=$(cd "$SCRIPT_DIR" && pwd)
 
 # we need a script, that will check if core is at wrong version & fail - like consistency check
@@ -9,6 +9,7 @@ SCRIPT_DIR=$(cd "$SCRIPT_DIR" && pwd)
 echo "PATH_DIR: ${PATH_DIR}"
 echo "SSH_COMMAND: ${SSH_COMMAND}"
 echo "REMOTE_ROOT: ${REMOTE_ROOT}"
+echo "CONSISTENCY_CHECK: ${CONSISTENCY_CHECK}"
 
 run_command() {
     local command=$1
@@ -21,21 +22,25 @@ run_command() {
     eval "$SSH_COMMAND '$command'"
 }
 
-# Check if core-version-composer file exists in SCRIPT_DIR
-if [ ! -f "${SCRIPT_DIR}/core-version-composer" ]; then
-    echo "core-version-composer file does not exist in ${SCRIPT_DIR}."
+# Check if core-version-composer-to file exists in SCRIPT_DIR
+if [ ! -f "${SCRIPT_DIR}/core-version-composer-to" ]; then
+    echo "core-version-composer-to file does not exist in ${SCRIPT_DIR}."
     exit 1 ## TODO switch to 0
 fi
 
-CORE_VERSION_COMPOSER=$(cat "${SCRIPT_DIR}/core-version-composer")
+CORE_VERSION_COMPOSER_TO=$(cat "${SCRIPT_DIR}/core-version-composer-to")
 
-echo "core-version-composer: $CORE_VERSION_COMPOSER"
+if [ -f "${SCRIPT_DIR}/core-version-composer-from" ]; then
+    CORE_VERSION_COMPOSER_FROM=$(cat "${SCRIPT_DIR}/core-version-composer-from")
+fi
 
 # If not set exit.
-if [ -z "$CORE_VERSION_COMPOSER" ]; then
-    echo "CORE_VERSION_COMPOSER is not set."
+if [ -z "$CORE_VERSION_COMPOSER_TO" ]; then
+    echo "CORE_VERSION_COMPOSER_TO is not set."
     exit 0
 fi
+
+echo "CORE_VERSION_COMPOSER_TO: $CORE_VERSION_COMPOSER_TO"
 
 # Check current version on remote
 CORE_VERSION_REMOTE=$(run_command "wp core version --path=${REMOTE_ROOT}")
@@ -48,22 +53,20 @@ if [ -z "$CORE_VERSION_REMOTE" ]; then
     exit 1
 fi
 
+# If current version is not what we expect, fail.
+if [ ! -z "$CORE_VERSION_COMPOSER_FROM" ]; then
+    if [ "$CORE_VERSION_COMPOSER_FROM" != "$CORE_VERSION_REMOTE" ]; then
+        echo "WordPress Core is not at the expected version on remote."
+        exit 1
+    fi
+fi
+
 # If versions match, exit.
-if [ "$CORE_VERSION_COMPOSER" == "$CORE_VERSION_REMOTE" ]; then
+if [ "$CORE_VERSION_COMPOSER_TO" == "$CORE_VERSION_REMOTE" ]; then
     echo "WordPress Core is already at the correct version."
     exit 0
 fi
 
 # If versions don't match, update.
-echo "Updating WordPress Core to version $CORE_VERSION_COMPOSER."
-run_command "wp core update --version=$CORE_VERSION_COMPOSER --force --path=${REMOTE_ROOT}"
-
-
-    # - name: Check for WP Core version attribute
-    #   id: wpcore
-    #   continue-on-error: true
-    #   shell: bash
-    #   run: |
-    #     cd "${{ inputs.built }}"
-    #     core_version=$(composer config extra.wordpress-core)
-    #     echo core_update_cmd="wp core update --version=$core_version --force --path=${{ inputs.env-remote-root }}" >> $GITHUB_OUTPUT
+echo "Updating WordPress Core to version $CORE_VERSION_COMPOSER_TO."
+run_command "wp core update --version=$CORE_VERSION_COMPOSER_TO --force --path=${REMOTE_ROOT}"

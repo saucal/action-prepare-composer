@@ -22,4 +22,5 @@ runs:
       shell: bash
       env:
         PATH_DIR: ${{ inputs.path }}
+        FROM_DIR: ${{ inputs.from }}
       run: "${{ github.action_path }}/prepare-wp-core-update.sh"
