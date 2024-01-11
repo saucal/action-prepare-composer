@@ -36,7 +36,7 @@ echo "CORE_VERSION_COMPOSER_TO: $CORE_VERSION_COMPOSER_TO"
 echo "CORE_VERSION_COMPOSER_FROM: $CORE_VERSION_COMPOSER_FROM"
 
 # Check current version on remote
-CORE_VERSION_REMOTE=$(run_command "wp core version --path=${REMOTE_ROOT}")
+CORE_VERSION_REMOTE=$(run_command "cd ${REMOTE_ROOT} && wp core version")
 
 echo "CORE_VERSION_REMOTE: $CORE_VERSION_REMOTE"
 
@@ -67,4 +67,4 @@ fi
 
 # If versions don't match, update.
 echo "Updating WordPress Core to version $CORE_VERSION_COMPOSER_TO."
-run_command "wp core update --version=$CORE_VERSION_COMPOSER_TO --force --path=${REMOTE_ROOT}"
+run_command "cd ${REMOTE_ROOT} && wp core update --version=$CORE_VERSION_COMPOSER_TO --force"
