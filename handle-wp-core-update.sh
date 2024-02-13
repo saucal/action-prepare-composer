@@ -3,8 +3,12 @@ PATH_DIR="${GITHUB_WORKSPACE}/${PATH_DIR}"
 SCRIPT_DIR=$(dirname "$0") # RUNNER_TEMP not available here
 SCRIPT_DIR=$(cd "$SCRIPT_DIR" && pwd)
 
-run_command() {
+# Set SSH_AUTH_SOCK to the agent socket
+export SSH_AUTH_SOCK=/tmp/ssh_agent.sock
+
+run_command() { 
     local command=$1
+
     if [ -z "$SSH_COMMAND" ]; then
         echo "SSH_COMMAND is not set. Unable to execute the command remotely."
         return 1
