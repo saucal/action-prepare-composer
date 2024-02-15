@@ -16,6 +16,7 @@ run_command() {
 
     # Execute the command remotely
     eval "$SSH_COMMAND '$command'"
+    return $?
 }
 
 # Check if core-version-composer-to file exists in SCRIPT_DIR
@@ -76,7 +77,12 @@ fi
 
 # If versions don't match, update. We don't care about CONSISTENCY_CHECK here as we 've are already acted on it above, if we do have a FROM version.
 echo "Updating WordPress Core to version $CORE_VERSION_COMPOSER_TO."
+
 run_command "cd ${REMOTE_ROOT} && wp core update --version=$CORE_VERSION_COMPOSER_TO --force"
+if [ $? -ne 0 ]; then
+    echo "Failed to update WordPress Core."
+    exit 1
+fi
 
 IS_MULTISITE=$(run_command "cd ${REMOTE_ROOT} && wp config get MULTISITE --quiet 2>/dev/null")
 
