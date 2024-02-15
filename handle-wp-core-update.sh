@@ -74,11 +74,7 @@ if [ "$CORE_VERSION_COMPOSER_TO" == "$CORE_VERSION_REMOTE" ]; then
     exit 0
 fi
 
-# If versions don't match, update, unless CONSISTENCY_CHECK is true.
-if [ "$CONSISTENCY_CHECK" == "true" ]; then
-    echo "Skipping WordPress Core update to version $CORE_VERSION_COMPOSER_TO as CONSISTENCY_CHECK is true."
-    exit 0
-else 
-    echo "Updating WordPress Core to version $CORE_VERSION_COMPOSER_TO."
-    run_command "cd ${REMOTE_ROOT} && wp core update --version=$CORE_VERSION_COMPOSER_TO --force"
-fi
+# If versions don't match, update. We don't care about CONSISTENCY_CHECK here as we 've are already acted on it above, if we do have a FROM version.
+echo "Updating WordPress Core to version $CORE_VERSION_COMPOSER_TO."
+run_command "cd ${REMOTE_ROOT} && wp core update --version=$CORE_VERSION_COMPOSER_TO --force"
+
