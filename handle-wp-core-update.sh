@@ -78,3 +78,10 @@ fi
 echo "Updating WordPress Core to version $CORE_VERSION_COMPOSER_TO."
 run_command "cd ${REMOTE_ROOT} && wp core update --version=$CORE_VERSION_COMPOSER_TO --force"
 
+IS_MULTISITE=$(run_command "cd ${REMOTE_ROOT} && wp config get MULTISITE --quiet 2>/dev/null")
+
+if [ -z "$IS_MULTISITE" ]; then
+    run_command "cd ${REMOTE_ROOT} && wp core update-db"
+else
+    run_command "cd ${REMOTE_ROOT} && wp core update-db --network"
+fi
