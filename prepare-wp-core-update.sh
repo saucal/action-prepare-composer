@@ -4,9 +4,13 @@ echo "Running prepare-wp-core-update.sh"
 
 cd "${GITHUB_WORKSPACE}/${PATH_DIR}" || exit 1;
 
-cp "$GITHUB_ACTION_PATH/handle-wp-core-update.sh" "${RUNNER_TEMP}/handle-wp-core-update.sh"
+## Hook into the hook system for ssh deployment
+HOOK_PATH="${RUNNER_TEMP}/.saucal/ssh-deploy/pre"
+mkdir -p "${HOOK_PATH}"
+ln -s "${GITHUB_ACTION_PATH}/handle-wp-core-update.sh" "${HOOK_PATH}/10-handle-wp-core-update.sh"
+chmod +x "${HOOK_PATH}/handle-wp-core-update.sh"
 
-echo "Copied handle-wp-core-update.sh to ${RUNNER_TEMP}/handle-wp-core-update.sh"
+echo "Hooked handle-wp-core-update.sh to ${HOOK_PATH}/10-handle-wp-core-update.sh"
 
 CORE_VERSION_COMPOSER_TO=$(composer config extra.wordpress-core) || CORE_VERSION_COMPOSER_TO=""
 
