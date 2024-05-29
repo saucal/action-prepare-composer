@@ -1,7 +1,5 @@
 #!/bin/bash
 PATH_DIR="${GITHUB_WORKSPACE}/${PATH_DIR}"
-SCRIPT_DIR=$(dirname "$0") # RUNNER_TEMP not available here
-SCRIPT_DIR=$(cd "$SCRIPT_DIR" && pwd)
 
 # Set SSH_AUTH_SOCK to the agent socket
 export SSH_AUTH_SOCK=/tmp/ssh_agent.sock
@@ -19,16 +17,16 @@ run_command() {
     return $?
 }
 
-# Check if core-version-composer-to file exists in SCRIPT_DIR
-if [ ! -f "${SCRIPT_DIR}/core-version-composer-to" ]; then
-    echo "core-version-composer-to file does not exist in ${SCRIPT_DIR}."
-    exit 0 # Exit with success code as we dont have a core version in composer.json
+# Check if core-version-composer-to file exists in RUNNER_TEMP
+if [ ! -f "${RUNNER_TEMP}/core-version-composer-to" ]; then
+    echo "core-version-composer-to file does not exist in ${RUNNER_TEMP}."
+    exit 0 # Exit with success code as we dont have a core version in 
 fi
 
-CORE_VERSION_COMPOSER_TO=$(cat "${SCRIPT_DIR}/core-version-composer-to")
+CORE_VERSION_COMPOSER_TO=$(cat "${RUNNER_TEMP}/core-version-composer-to")
 
-if [ -f "${SCRIPT_DIR}/core-version-composer-from" ]; then
-    CORE_VERSION_COMPOSER_FROM=$(cat "${SCRIPT_DIR}/core-version-composer-from")
+if [ -f "${RUNNER_TEMP}/core-version-composer-from" ]; then
+    CORE_VERSION_COMPOSER_FROM=$(cat "${RUNNER_TEMP}/core-version-composer-from")
 fi
 
 # If not set exit.
