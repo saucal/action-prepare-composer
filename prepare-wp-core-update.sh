@@ -8,7 +8,7 @@ cd "${GITHUB_WORKSPACE}/${PATH_DIR}" || exit 1;
 HOOK_PATH="${RUNNER_TEMP}/.saucal/ssh-deploy/pre"
 mkdir -p "${HOOK_PATH}"
 ln -s "${GITHUB_ACTION_PATH}/handle-wp-core-update.sh" "${HOOK_PATH}/10-handle-wp-core-update.sh"
-chmod +x "${HOOK_PATH}/handle-wp-core-update.sh"
+chmod +x "${HOOK_PATH}/10-handle-wp-core-update.sh"
 
 echo "Hooked handle-wp-core-update.sh to ${HOOK_PATH}/10-handle-wp-core-update.sh"
 
