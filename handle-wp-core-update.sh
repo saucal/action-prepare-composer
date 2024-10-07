@@ -50,8 +50,8 @@ if [ -z "$CORE_VERSION_REMOTE" ]; then
 fi
 
 if [ "$CONSISTENCY_CHECK" == "true" ] && [ -z "$CORE_VERSION_COMPOSER_FROM" ]; then
-    echo "CONSISTENCY_CHECK is true but CORE_VERSION_COMPOSER_FROM is not set."
-    exit 1
+    echo "::warning title=CORE_VERSION_COMPOSER_FROM not set::CONSISTENCY_CHECK is true but CORE_VERSION_COMPOSER_FROM is not set."
+    exit 0
 fi
 
 # If current version is not what we expect and CONSISTENCY_CHECK is true, fail, else log a warning
