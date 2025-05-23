@@ -14,6 +14,9 @@ if [ ! -f "${FROM_DIR}/vendor/composer/installed.json" ]; then
 	exit 0;
 fi
 
+FROM_PATHS="$(jq -rcM '.extra."installer-paths" | with_entries( .key |= ( sub("{.*?}\/"; ""; "g") | "../../" + . ) | .value |= ( tostring | @base64 ) | { "key": .value, "value": .key } )' "${FROM_DIR}/composer.json")"
+TO_PATHS="$(jq -rcM '.extra."installer-paths" | with_entries( .key |= ( sub("{.*?}\/"; ""; "g") | "../../" + . ) | .value |= ( tostring | @base64 ) | { "key": .value, "value": .key } )' "${PATH_DIR}/composer.json")"
+REPLACES="$(jq --argjson from_paths "${FROM_PATHS}" --argjson to_paths "${TO_PATHS}" -rcnM '$from_paths | with_entries( .value = ( if $to_paths[ .key ] then { from: .value, to: $to_paths[ .key ] } else null end ) | select( .value != null ) ) | to_entries | map_values( .value )')"
 
 
 # initialize composer on build dir
@@ -26,20 +29,33 @@ WHITELIST=$(jq -crM '[ .packages[] | .name ] + ["composer/installers"] | unique'
 
 # refresh installed.json based on packages previously installed
 {
-	jq --indent 4 -rM --argjson whitelist "${WHITELIST}" 'del(.packages[] | select( .name as $in | $whitelist | index($in) | not))' "${PATH_DIR}/vendor/composer/installed.json"
-} > "${PATH_DIR}/vendor/composer/installed_new.json"
-
-rm -rf "${PATH_DIR}/vendor/composer/installed.json"
-mv "${PATH_DIR}/vendor/composer/installed_new.json" "${PATH_DIR}/vendor/composer/installed.json"
+	jq --indent 4 -rM --argjson repls "$REPLACES" --argjson whitelist "${WHITELIST}" '
+	del(.packages[] | select( .name as $in | $whitelist | index($in) | not)) |
+	.packages[] |= (
+		if
+			.name != "composer/installers"
+		then ( 
+			."old-install-path" = ."install-path" | 
+			."install-path" |= reduce $repls[] as $r (.; sub($r.from; $r.to))
+		)
+		end
+	)' "${FROM_DIR}/vendor/composer/installed.json"
+} > "${PATH_DIR}/vendor/composer/installed.json"
 
 # move files from location to new one
 while IFS=\= read PACKAGE; do
-	PACKAGE_DIR="${PACKAGE#"../../"}"
-	PACKAGE_PARENT_DIR="$(dirname "$PACKAGE_DIR")"
-	echo "Attempting to restore ${PACKAGE_DIR}"
-	mkdir -p "${PATH_DIR:?}/${PACKAGE_PARENT_DIR}"
-	rm -rf "${PATH_DIR:?}/${PACKAGE_DIR}"
-	cp -rf "${FROM_DIR:?}/${PACKAGE_DIR}" "${PATH_DIR:?}/${PACKAGE_DIR}"
+	# split the package into two variables, before colon is from path and after is to path
+	PACKAGE_FROM="$( echo "$PACKAGE" | cut -d ':' -f 1 )"
+	PACKAGE_TO="$( echo "$PACKAGE" | cut -d ':' -f 2 )"
+	echo "Attempting to restore ${PACKAGE_FROM} to ${PACKAGE_TO}"
+	PACKAGE_TO_PARENT_DIR="$(dirname "$PACKAGE_TO")"
+
+	mkdir -p "${PATH_DIR:?}/${PACKAGE_TO_PARENT_DIR}"
+	rm -rf "${PATH_DIR:?}/${PACKAGE_TO}"
+	cp -rf "${FROM_DIR:?}/${PACKAGE_FROM}" "${PATH_DIR:?}/${PACKAGE_TO}"
 	# TODO: ^ move, instead of copy
-done < <(jq -crM 'del(.packages[] | select( .name as $in | ["composer/installers"] | index($in))) | .packages[]."install-path"' "${PATH_DIR}/vendor/composer/installed.json")
+done < <(jq -crM '.packages[] | select( ."old-install-path" != null) | ( ."old-install-path" | sub("^..\/..\/"; "") ) + ":" + ( ."install-path" | sub("^..\/..\/"; "") )' "${PATH_DIR}/vendor/composer/installed.json")
 unset IFS
+
+jq 'del(.packages[]."old-install-path")' "${PATH_DIR}/vendor/composer/installed.json" > "${PATH_DIR}/vendor/composer/installed.json.tmp"
+mv -f "${PATH_DIR}/vendor/composer/installed.json.tmp" "${PATH_DIR}/vendor/composer/installed.json"
