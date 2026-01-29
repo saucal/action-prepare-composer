@@ -7,6 +7,8 @@ export SSH_AUTH_SOCK=/tmp/ssh_agent.sock
 run_command() { 
     local command=$1
 
+    # $SSH_COMMAND is defined in main.js of saucal/action-deploy-ssh
+    # TODO: Improve quotes handling & consider maintainability of the logic in long term
     if [ -z "$SSH_COMMAND" ]; then
         echo "SSH_COMMAND is not set. Unable to execute the command remotely."
         return 1
