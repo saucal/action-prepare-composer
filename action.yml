@@ -7,7 +7,11 @@ inputs:
   from:
     description: "Take installed dependencies from this previous build"
     required: true
-    
+  satis_key:
+    description: "SatisPress key (packages.saucal.com). When set, configures composer http-basic auth in the target dir so later composer runs (here or in the same job) can reach private packages."
+    required: false
+    default: ''
+
 runs:
   using: "composite"
   steps:
@@ -16,6 +20,7 @@ runs:
       env:
         PATH_DIR: ${{ inputs.path }}
         FROM_DIR: ${{ inputs.from }}
+        SATIS_KEY: ${{ inputs.satis_key }}
       run: "${{ github.action_path }}/prepare-composer-wp.sh"
 
     - name: Prepare WP Core update handler
