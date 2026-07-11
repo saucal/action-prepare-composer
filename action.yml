@@ -18,7 +18,7 @@ runs:
     - name: SatisPress auth
       uses: saucal/action-composer-auth@v1
       with:
-        satis_key: ${{ inputs.satis_key }}
+        username: ${{ inputs.satis_key }}
         path: ${{ inputs.path }}
 
     - name: Path Setup
