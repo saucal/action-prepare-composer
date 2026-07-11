@@ -8,14 +8,8 @@ if [ ! -f "${PATH_DIR}/composer.json" ]; then
 	exit 0;
 fi
 
-# Single source of truth for composer<->packages.saucal.com auth. Runs whenever there's a
-# composer project, before the copy-forward early-exit, so any later composer run in this dir
-# (e.g. the consistency-check reconcile in the same job) is authenticated. Mirrors
-# build/build-for-deployment.sh.
-if [ -n "${SATIS_KEY}" ]; then
-	echo "Setup authentication for our SatisPress instance"
-	( cd "${PATH_DIR}" && composer config http-basic.packages.saucal.com "${SATIS_KEY}" "$(composer config homepage | sed 's,http[s]\?://,,')" )
-fi
+# SatisPress auth is configured by the SatisPress auth step (saucal/action-composer-auth) that
+# runs before this script.
 
 if [ ! -f "${FROM_DIR}/vendor/composer/installed.json" ]; then
 	echo "We don't have previously installed dependencies"

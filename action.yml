@@ -15,12 +15,17 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: SatisPress auth
+      uses: saucal/action-composer-auth@v1
+      with:
+        satis_key: ${{ inputs.satis_key }}
+        path: ${{ inputs.path }}
+
     - name: Path Setup
       shell: bash
       env:
         PATH_DIR: ${{ inputs.path }}
         FROM_DIR: ${{ inputs.from }}
-        SATIS_KEY: ${{ inputs.satis_key }}
       run: "${{ github.action_path }}/prepare-composer-wp.sh"
 
     - name: Prepare WP Core update handler
