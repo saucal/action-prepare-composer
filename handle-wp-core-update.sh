@@ -19,30 +19,36 @@ run_command() {
     return $?
 }
 
-# Check if core-version-composer-to file exists in RUNNER_TEMP
-if [ ! -f "${RUNNER_TEMP}/core-version-composer-to" ]; then
-    echo "core-version-composer-to file does not exist in ${RUNNER_TEMP}."
-    exit 0 # Exit with success code as we dont have a core version in 
-fi
+# What the server runs, and whether the deploy user can write core at all (if not, the host owns
+# it). Recorded for consistency self-heal. No single quotes in here: run_command wraps the command in them.
+probe_core() {
+    CORE_VERSION_REMOTE=$(run_command "cd ${REMOTE_ROOT} && wp core version")
+    [ -n "$CORE_VERSION_REMOTE" ] && echo "$CORE_VERSION_REMOTE" > "${RUNNER_TEMP}/core-version-remote"
+    CORE_ACCESS=$(run_command "cd ${REMOTE_ROOT} && f=\"\$(wp eval \"echo ABSPATH;\" 2>/dev/null)wp-includes/version.php\"; [ -w \"\$f\" ] && echo writable || echo managed")
+    CORE_MANAGED_BY_HOST=""
+    if [ "$(printf '%s' "$CORE_ACCESS" | tail -n 1 | tr -d '[:space:]')" == "managed" ]; then
+        CORE_MANAGED_BY_HOST=1
+        echo "1" > "${RUNNER_TEMP}/core-managed-by-host"
+    fi
+}
 
-CORE_VERSION_COMPOSER_TO=$(cat "${RUNNER_TEMP}/core-version-composer-to")
+CORE_VERSION_COMPOSER_TO=$(cat "${RUNNER_TEMP}/core-version-composer-to" 2>/dev/null)
 
 if [ -f "${RUNNER_TEMP}/core-version-composer-from" ]; then
     CORE_VERSION_COMPOSER_FROM=$(cat "${RUNNER_TEMP}/core-version-composer-from")
 fi
 
-# If not set exit.
+# The repo doesn't manage core (no extra.wordpress-core): only look, quietly — self-heal uses the
+# answer to bring the line back where the deploy user can write core.
 if [ -z "$CORE_VERSION_COMPOSER_TO" ]; then
-    echo "CORE_VERSION_COMPOSER_TO is not set."
+    probe_core
     exit 0
 fi
 
 echo "CORE_VERSION_COMPOSER_TO: $CORE_VERSION_COMPOSER_TO"
 echo "CORE_VERSION_COMPOSER_FROM: $CORE_VERSION_COMPOSER_FROM"
 
-# Check current version on remote
-CORE_VERSION_REMOTE=$(run_command "cd ${REMOTE_ROOT} && wp core version")
-
+probe_core
 echo "CORE_VERSION_REMOTE: $CORE_VERSION_REMOTE"
 
 # If not set fail.
@@ -51,16 +57,10 @@ if [ -z "$CORE_VERSION_REMOTE" ]; then
     exit 1
 fi
 
-# Record it for consistency self-heal (reconcile sets extra.wordpress-core to the server's version).
-echo "$CORE_VERSION_REMOTE" > "${RUNNER_TEMP}/core-version-remote"
-
 # Core the deploy user cannot write is managed by the host (Pressable, VIP, ...): never update it
-# and never fail on it — at most warn that the repo and the server disagree. Recorded for consistency
-# self-heal, which then drops extra.wordpress-core from the repo. (No single quotes in here:
-# run_command wraps the command in them.)
-CORE_ACCESS=$(run_command "cd ${REMOTE_ROOT} && f=\"\$(wp eval \"echo ABSPATH;\" 2>/dev/null)wp-includes/version.php\"; [ -w \"\$f\" ] && echo writable || echo managed")
-if [ "$(printf '%s' "$CORE_ACCESS" | tail -n 1 | tr -d '[:space:]')" == "managed" ]; then
-    echo "1" > "${RUNNER_TEMP}/core-managed-by-host"
+# and never fail on it — at most warn that the repo and the server disagree. Consistency self-heal
+# drops extra.wordpress-core from such a repo.
+if [ -n "$CORE_MANAGED_BY_HOST" ]; then
     if [ "$CORE_VERSION_COMPOSER_TO" != "$CORE_VERSION_REMOTE" ]; then
         echo "::warning title=WordPress core is managed by the host::The repo asks for $CORE_VERSION_COMPOSER_TO but the server runs $CORE_VERSION_REMOTE. Core files are not writable by the deploy user, so it is not updated; drop extra.wordpress-core for this site."
     fi

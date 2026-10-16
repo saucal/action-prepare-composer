@@ -4,8 +4,13 @@ cd "${GITHUB_WORKSPACE}/${PATH_DIR}" || exit 1;
 
 CORE_VERSION_COMPOSER_TO=$(composer config extra.wordpress-core 2>/dev/null) || CORE_VERSION_COMPOSER_TO=""
 
-# Core isn't managed by composer here: nothing to hook, nothing to say.
+# Core isn't managed by composer here: nothing to say, but still hook the (probe-only, quiet)
+# handler so consistency self-heal learns the server's version and whether the deploy user can
+# write core — where it can, self-heal brings the line back at the server's version.
 if [ -z "$CORE_VERSION_COMPOSER_TO" ]; then
+    HOOK_PATH="${RUNNER_TEMP}/.saucal/ssh-deploy/pre"
+    mkdir -p "${HOOK_PATH}"
+    ln -sf "${GITHUB_ACTION_PATH}/handle-wp-core-update.sh" "${HOOK_PATH}/10-handle-wp-core-update.sh"
     exit 0
 fi
 
