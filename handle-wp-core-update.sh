@@ -54,6 +54,19 @@ fi
 # Record it for consistency self-heal (reconcile sets extra.wordpress-core to the server's version).
 echo "$CORE_VERSION_REMOTE" > "${RUNNER_TEMP}/core-version-remote"
 
+# Core the deploy user cannot write is managed by the host (Pressable, VIP, ...): never update it
+# and never fail on it — at most warn that the repo and the server disagree. Recorded for consistency
+# self-heal, which then drops extra.wordpress-core from the repo. (No single quotes in here:
+# run_command wraps the command in them.)
+CORE_ACCESS=$(run_command "cd ${REMOTE_ROOT} && f=\"\$(wp eval \"echo ABSPATH;\" 2>/dev/null)wp-includes/version.php\"; [ -w \"\$f\" ] && echo writable || echo managed")
+if [ "$(printf '%s' "$CORE_ACCESS" | tail -n 1 | tr -d '[:space:]')" == "managed" ]; then
+    echo "1" > "${RUNNER_TEMP}/core-managed-by-host"
+    if [ "$CORE_VERSION_COMPOSER_TO" != "$CORE_VERSION_REMOTE" ]; then
+        echo "::warning title=WordPress core is managed by the host::The repo asks for $CORE_VERSION_COMPOSER_TO but the server runs $CORE_VERSION_REMOTE. Core files are not writable by the deploy user, so it is not updated; drop extra.wordpress-core for this site."
+    fi
+    exit 0
+fi
+
 # Already where this build wants it — nothing to check or change (even if the last build said otherwise).
 if [ "$CORE_VERSION_COMPOSER_TO" == "$CORE_VERSION_REMOTE" ]; then
     echo "WordPress Core is already at the correct version."
