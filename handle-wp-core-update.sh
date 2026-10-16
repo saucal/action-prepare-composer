@@ -51,9 +51,24 @@ if [ -z "$CORE_VERSION_REMOTE" ]; then
     exit 1
 fi
 
+# Record it for consistency self-heal (reconcile sets extra.wordpress-core to the server's version).
+echo "$CORE_VERSION_REMOTE" > "${RUNNER_TEMP}/core-version-remote"
+
+# Already where this build wants it — nothing to check or change (even if the last build said otherwise).
+if [ "$CORE_VERSION_COMPOSER_TO" == "$CORE_VERSION_REMOTE" ]; then
+    echo "WordPress Core is already at the correct version."
+    exit 0
+fi
+
 if [ "$CONSISTENCY_CHECK" == "true" ] && [ -z "$CORE_VERSION_COMPOSER_FROM" ]; then
     echo "::warning title=CORE_VERSION_COMPOSER_FROM not set::CONSISTENCY_CHECK is true but CORE_VERSION_COMPOSER_FROM is not set."
     exit 0
+fi
+
+# A dry run (pure consistency check / self-heal verify) must never update the server.
+if [ "$DRY_RUN" == "true" ]; then
+    echo "WordPress Core is not at the expected version ($CORE_VERSION_COMPOSER_TO expected, server has $CORE_VERSION_REMOTE). Dry run: not updating."
+    exit 1
 fi
 
 # If current version is not what we expect and CONSISTENCY_CHECK is true, fail, else log a warning
@@ -67,12 +82,6 @@ if [ ! -z "$CORE_VERSION_COMPOSER_FROM" ]; then
             echo "Continuing with update as CONSISTENCY_CHECK is false."
         fi
     fi
-fi
-
-# If versions match, exit.
-if [ "$CORE_VERSION_COMPOSER_TO" == "$CORE_VERSION_REMOTE" ]; then
-    echo "WordPress Core is already at the correct version."
-    exit 0
 fi
 
 # If versions don't match, update. We don't care about CONSISTENCY_CHECK here as we 've are already acted on it above, if we do have a FROM version.
