@@ -19,30 +19,39 @@ run_command() {
     return $?
 }
 
-# Check if core-version-composer-to file exists in RUNNER_TEMP
-if [ ! -f "${RUNNER_TEMP}/core-version-composer-to" ]; then
-    echo "core-version-composer-to file does not exist in ${RUNNER_TEMP}."
-    exit 0 # Exit with success code as we dont have a core version in 
-fi
+# What the server runs, and whether the deploy user can write core at all (if not, the host owns
+# it). Recorded for consistency self-heal. No single quotes in here: run_command wraps the command in them.
+probe_core() {
+    CORE_VERSION_REMOTE=$(run_command "cd ${REMOTE_ROOT} && wp core version")
+    [ -n "$CORE_VERSION_REMOTE" ] && echo "$CORE_VERSION_REMOTE" > "${RUNNER_TEMP}/core-version-remote"
+    # "managed" only on positive evidence: WordPress answered with an absolute ABSPATH, the core file
+    # exists there, and it isn't writable. Anything else (DB down, plugin fatal or output, odd host)
+    # keeps today's behaviour.
+    CORE_ACCESS=$(run_command "cd ${REMOTE_ROOT} && a=\"\$(wp eval --skip-plugins --skip-themes \"echo ABSPATH;\" 2>/dev/null | tail -n 1)\"; f=\"\${a}wp-includes/version.php\"; case \"\$a\" in /*) [ -f \"\$f\" ] && { [ -w \"\$f\" ] && echo writable || echo managed; } || echo unknown ;; *) echo unknown ;; esac")
+    CORE_MANAGED_BY_HOST=""
+    if [ "$(printf '%s' "$CORE_ACCESS" | tail -n 1 | tr -d '[:space:]')" == "managed" ]; then
+        CORE_MANAGED_BY_HOST=1
+        echo "1" > "${RUNNER_TEMP}/core-managed-by-host"
+    fi
+}
 
-CORE_VERSION_COMPOSER_TO=$(cat "${RUNNER_TEMP}/core-version-composer-to")
+CORE_VERSION_COMPOSER_TO=$(cat "${RUNNER_TEMP}/core-version-composer-to" 2>/dev/null)
 
 if [ -f "${RUNNER_TEMP}/core-version-composer-from" ]; then
     CORE_VERSION_COMPOSER_FROM=$(cat "${RUNNER_TEMP}/core-version-composer-from")
 fi
 
-# If not set exit.
+# The repo doesn't manage core (no extra.wordpress-core): only look, quietly — self-heal uses the
+# answer to bring the line back where the deploy user can write core.
 if [ -z "$CORE_VERSION_COMPOSER_TO" ]; then
-    echo "CORE_VERSION_COMPOSER_TO is not set."
+    probe_core
     exit 0
 fi
 
 echo "CORE_VERSION_COMPOSER_TO: $CORE_VERSION_COMPOSER_TO"
 echo "CORE_VERSION_COMPOSER_FROM: $CORE_VERSION_COMPOSER_FROM"
 
-# Check current version on remote
-CORE_VERSION_REMOTE=$(run_command "cd ${REMOTE_ROOT} && wp core version")
-
+probe_core
 echo "CORE_VERSION_REMOTE: $CORE_VERSION_REMOTE"
 
 # If not set fail.
@@ -51,9 +60,36 @@ if [ -z "$CORE_VERSION_REMOTE" ]; then
     exit 1
 fi
 
+# Core the deploy user cannot write is managed by the host (Pressable, VIP, ...): never update it
+# and never fail on it — at most warn that the repo and the server disagree. Consistency self-heal
+# drops extra.wordpress-core from such a repo.
+if [ -n "$CORE_MANAGED_BY_HOST" ]; then
+    if [ "$CORE_VERSION_COMPOSER_TO" != "$CORE_VERSION_REMOTE" ]; then
+        echo "::warning title=WordPress core is managed by the host::The repo asks for $CORE_VERSION_COMPOSER_TO but the server runs $CORE_VERSION_REMOTE. Core files are not writable by the deploy user, so it is not updated; drop extra.wordpress-core for this site."
+    fi
+    exit 0
+fi
+
+# Already where this build wants it — nothing to check or change (even if the last build said otherwise).
+if [ "$CORE_VERSION_COMPOSER_TO" == "$CORE_VERSION_REMOTE" ]; then
+    echo "WordPress Core is already at the correct version."
+    exit 0
+fi
+
 if [ "$CONSISTENCY_CHECK" == "true" ] && [ -z "$CORE_VERSION_COMPOSER_FROM" ]; then
     echo "::warning title=CORE_VERSION_COMPOSER_FROM not set::CONSISTENCY_CHECK is true but CORE_VERSION_COMPOSER_FROM is not set."
     exit 0
+fi
+
+# A dry run (pure consistency check / self-heal verify) must never update the server. The server
+# matching the last deploy is fine: the new version just isn't deployed yet.
+if [ "$DRY_RUN" == "true" ] && [ -n "$CORE_VERSION_COMPOSER_FROM" ] && [ "$CORE_VERSION_COMPOSER_FROM" == "$CORE_VERSION_REMOTE" ]; then
+    echo "WordPress Core matches the last deploy ($CORE_VERSION_REMOTE); $CORE_VERSION_COMPOSER_TO is not deployed yet. Dry run: not updating."
+    exit 0
+fi
+if [ "$DRY_RUN" == "true" ]; then
+    echo "WordPress Core is not at the expected version ($CORE_VERSION_COMPOSER_TO expected, server has $CORE_VERSION_REMOTE). Dry run: not updating."
+    exit 1
 fi
 
 # If current version is not what we expect and CONSISTENCY_CHECK is true, fail, else log a warning
@@ -67,12 +103,6 @@ if [ ! -z "$CORE_VERSION_COMPOSER_FROM" ]; then
             echo "Continuing with update as CONSISTENCY_CHECK is false."
         fi
     fi
-fi
-
-# If versions match, exit.
-if [ "$CORE_VERSION_COMPOSER_TO" == "$CORE_VERSION_REMOTE" ]; then
-    echo "WordPress Core is already at the correct version."
-    exit 0
 fi
 
 # If versions don't match, update. We don't care about CONSISTENCY_CHECK here as we 've are already acted on it above, if we do have a FROM version.
