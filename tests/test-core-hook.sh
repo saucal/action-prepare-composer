@@ -16,7 +16,7 @@ run_case() {
 #!/usr/bin/env bash
 case "\$1" in
   *"wp core update"*) echo "\$1" >> "$tmp/updates"; exit 0 ;;
-  *"wp-includes/version.php"*) [ "$writable" = yes ] && echo writable || echo managed ;;
+  *"wp-includes/version.php"*) case "$writable" in yes) echo writable ;; no) echo managed ;; *) echo unknown ;; esac ;;
   *"wp core version"*) echo "$remote" ;;
   *) exit 0 ;;
 esac
@@ -40,7 +40,10 @@ run_case "managed core, deploy, versions differ: warn, never update" no 7.1.3 7.
 run_case "managed core, dry run, versions differ: warn, do not fail" no 7.1.3 7.1.4 7.1.3 true true 0 no
 run_case "managed core, in sync: quiet success" no 7.1.3 7.1.3 7.1.3 true true 0 no
 run_case "writable core, deploy: updates as before" yes 7.1.3 7.1.4 7.1.3 true false 0 yes
-run_case "writable core, dry run, versions differ: fail, never update" yes 7.1.3 7.1.4 7.1.3 true true 1 no
+run_case "writable core, dry run, server = last deploy, new version pending: pass, never update" yes 7.1.3 7.1.4 7.1.3 true true 0 no
+run_case "writable core, dry run, server drifted from the last deploy: fail, never update" yes 7.1.2 7.1.4 7.1.3 true true 1 no
+# The probe can't tell (wp eval failed: DB down, plugin fatal): behave as a writable host, never as managed.
+run_case "probe unknown, deploy: updates as before" unknown 7.1.3 7.1.4 7.1.3 true false 0 yes
 # Repo without extra.wordpress-core: probe only (record the server's version and who owns core), quietly.
 run_case "no core line, writable: records the version, quiet, never updates" yes 7.1.3 "" "" true true 0 no
 run_case "no core line, managed: records host-managed, quiet, never updates" no 7.1.3 "" "" true false 0 no

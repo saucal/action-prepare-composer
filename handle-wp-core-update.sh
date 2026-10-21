@@ -24,7 +24,10 @@ run_command() {
 probe_core() {
     CORE_VERSION_REMOTE=$(run_command "cd ${REMOTE_ROOT} && wp core version")
     [ -n "$CORE_VERSION_REMOTE" ] && echo "$CORE_VERSION_REMOTE" > "${RUNNER_TEMP}/core-version-remote"
-    CORE_ACCESS=$(run_command "cd ${REMOTE_ROOT} && f=\"\$(wp eval \"echo ABSPATH;\" 2>/dev/null)wp-includes/version.php\"; [ -w \"\$f\" ] && echo writable || echo managed")
+    # "managed" only on positive evidence: WordPress answered with an absolute ABSPATH, the core file
+    # exists there, and it isn't writable. Anything else (DB down, plugin fatal or output, odd host)
+    # keeps today's behaviour.
+    CORE_ACCESS=$(run_command "cd ${REMOTE_ROOT} && a=\"\$(wp eval --skip-plugins --skip-themes \"echo ABSPATH;\" 2>/dev/null | tail -n 1)\"; f=\"\${a}wp-includes/version.php\"; case \"\$a\" in /*) [ -f \"\$f\" ] && { [ -w \"\$f\" ] && echo writable || echo managed; } || echo unknown ;; *) echo unknown ;; esac")
     CORE_MANAGED_BY_HOST=""
     if [ "$(printf '%s' "$CORE_ACCESS" | tail -n 1 | tr -d '[:space:]')" == "managed" ]; then
         CORE_MANAGED_BY_HOST=1
@@ -78,7 +81,12 @@ if [ "$CONSISTENCY_CHECK" == "true" ] && [ -z "$CORE_VERSION_COMPOSER_FROM" ]; t
     exit 0
 fi
 
-# A dry run (pure consistency check / self-heal verify) must never update the server.
+# A dry run (pure consistency check / self-heal verify) must never update the server. The server
+# matching the last deploy is fine: the new version just isn't deployed yet.
+if [ "$DRY_RUN" == "true" ] && [ -n "$CORE_VERSION_COMPOSER_FROM" ] && [ "$CORE_VERSION_COMPOSER_FROM" == "$CORE_VERSION_REMOTE" ]; then
+    echo "WordPress Core matches the last deploy ($CORE_VERSION_REMOTE); $CORE_VERSION_COMPOSER_TO is not deployed yet. Dry run: not updating."
+    exit 0
+fi
 if [ "$DRY_RUN" == "true" ]; then
     echo "WordPress Core is not at the expected version ($CORE_VERSION_COMPOSER_TO expected, server has $CORE_VERSION_REMOTE). Dry run: not updating."
     exit 1
