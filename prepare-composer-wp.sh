@@ -31,9 +31,10 @@ cp -rf "${FROM_DIR}/vendor/composer" "${PATH_DIR}/vendor/composer"
 WHITELIST=$(jq -crM '[ .packages[] | .name ] + ["composer/installers"] | unique' "${PATH_DIR}/composer.lock")
 
 # refresh installed.json based on packages previously installed
+# patched packages are never restored: their patch set may have changed, so composer installs (and re-patches) them fresh
 {
 	jq --indent 4 -rM --argjson repls "$REPLACES" --argjson whitelist "${WHITELIST}" '
-	del(.packages[] | select( .name as $in | $whitelist | index($in) | not)) |
+	del(.packages[] | select( ( .name as $in | $whitelist | index($in) | not ) or .extra."saucal-patches-applied" != null or .extra.patches_applied != null )) |
 	.packages[] |= (
 		if
 			.name != "composer/installers"
