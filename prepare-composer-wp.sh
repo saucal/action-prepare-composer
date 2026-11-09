@@ -30,11 +30,17 @@ cp -rf "${FROM_DIR}/vendor/composer" "${PATH_DIR}/vendor/composer"
 # build list of plugins to be installed
 WHITELIST=$(jq -crM '[ .packages[] | .name ] + ["composer/installers"] | unique' "${PATH_DIR}/composer.lock")
 
+# locked version + dist checksum per package, to catch a zip replaced under the same version
+LOCKED=$(jq -crM '[ .packages[] | { key: .name, value: { version: .version, shasum: ( .dist.shasum // "" ) } } ] | from_entries' "${PATH_DIR}/composer.lock")
+
 # refresh installed.json based on packages previously installed
 # patched packages are never restored: their patch set may have changed, so composer installs (and re-patches) them fresh
+# a package locked at the same version but with a different dist checksum (zip replaced on the package server) is not
+# restored either: composer does not compare checksums for an already-installed version, so it would keep the stale copy
+# (or reinstall it against the stale checksum and fail). Version changes are still restored and upgraded as usual.
 {
-	jq --indent 4 -rM --argjson repls "$REPLACES" --argjson whitelist "${WHITELIST}" '
-	del(.packages[] | select( ( .name as $in | $whitelist | index($in) | not ) or .extra."saucal-patches-applied" != null or .extra.patches_applied != null )) |
+	jq --indent 4 -rM --argjson repls "$REPLACES" --argjson whitelist "${WHITELIST}" --argjson locked "${LOCKED}" '
+	del(.packages[] | select( ( .name as $in | $whitelist | index($in) | not ) or .extra."saucal-patches-applied" != null or .extra.patches_applied != null or ( $locked[ .name ] as $l | $l != null and $l.shasum != "" and .version == $l.version and ( .dist.shasum // "" ) != $l.shasum ) )) |
 	.packages[] |= (
 		if
 			.name != "composer/installers"
